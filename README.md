@@ -27,7 +27,7 @@ cp .env.example .env            # fill in DATABASE_URL and a long JWT_SECRET
 createdb gymbooking              # or whatever your DATABASE_URL points to
 npm install
 npm run migrate                  # runs server/migrations/*.sql
-npm run seed                     # test users + sample sessions
+npm run seed                     # test users + sessions (3 days, 6am-9pm IST, plus the current hour)
 npm run dev                      # http://localhost:4000
 ```
 
@@ -41,6 +41,17 @@ npm run dev                      # http://localhost:5173
 ```
 
 Open http://localhost:5173.
+
+## Tests
+
+With the server running (`npm run dev`) and the database seeded, in another terminal:
+
+```bash
+cd server
+npm run test:e2e
+```
+
+It creates 25 users, has all 25 book the same 20-seat session at the same moment, and checks that exactly 20 are confirmed and 5 waitlisted. It also checks the other rules: no double booking, a cancellation promotes the first person on the waitlist, check-in codes work once and only inside the time window, and the 401, 403 and 422 responses.
 
 ## Test credentials (seeded)
 
@@ -105,6 +116,6 @@ client/
 
 - Rate limiting on login (would add in production).
 - Refresh tokens (1-day JWT keeps it simple).
-- Automated tests — the race condition would be the first thing I'd write a test for.
+- Unit tests and a CI pipeline. There is one end-to-end test (below) that covers the race condition, but no per-function tests.
 - Email notifications for waitlist promotion.
 - CSRF tokens: not needed because we use `Authorization: Bearer` headers, not cookies.
