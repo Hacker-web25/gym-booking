@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../api';
 import { useAuth } from '../auth/AuthContext';
 
@@ -21,9 +21,35 @@ function formatIst(iso: string): string {
   });
 }
 
+interface MyBooking {
+  session_id: number;
+  status: 'confirmed' | 'cancelled';
+}
+
+interface MyWaitlist {
+  session_id: number;
+  position: number;
+}
+
 export function SessionCard({ session }: { session: Session }) {
   const { user } = useAuth();
   const qc = useQueryClient();
+
+  // Same query keys as the My bookings page, so all cards share one request each.
+  const myBookings = useQuery({
+    queryKey: ['my-bookings'],
+    queryFn: () => api<MyBooking[]>('/me/bookings'),
+    enabled: !!user,
+  });
+  const myWaitlist = useQuery({
+    queryKey: ['my-waitlist'],
+    queryFn: () => api<MyWaitlist[]>('/me/waitlist'),
+    enabled: !!user,
+  });
+  const isBooked = !!myBookings.data?.some(
+    (b) => b.session_id === session.id && b.status === 'confirmed',
+  );
+  const waitlistEntry = myWaitlist.data?.find((w) => w.session_id === session.id);
 
   const bookMutation = useMutation({
     mutationFn: () =>
@@ -57,6 +83,10 @@ export function SessionCard({ session }: { session: Session }) {
         <p className="muted">Log in to book</p>
       ) : past ? (
         <p className="muted">Session ended</p>
+      ) : isBooked ? (
+        <p className="success" role="status">Booked ✓ (see My bookings for your check-in code)</p>
+      ) : waitlistEntry ? (
+        <p className="success" role="status">On waitlist, position {waitlistEntry.position}</p>
       ) : (
         <button
           type="button"
@@ -70,13 +100,6 @@ export function SessionCard({ session }: { session: Session }) {
       {bookMutation.isError && (
         <p className="error" role="alert">
           {(bookMutation.error as ApiError).message}
-        </p>
-      )}
-      {bookMutation.isSuccess && (
-        <p className="success" role="status">
-          {bookMutation.data.outcome === 'confirmed'
-            ? 'Booked!'
-            : `On waitlist (position ${bookMutation.data.waitlist_position})`}
         </p>
       )}
     </article>
