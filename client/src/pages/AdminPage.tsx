@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../api';
 import { Session } from '../components/SessionCard';
+import { todayIst } from '../dates';
 
 interface Roster {
   session: { id: number; starts_at: string; ends_at: string; capacity: number };
@@ -20,7 +21,7 @@ function formatIst(iso: string): string {
 
 export function AdminPage() {
   const qc = useQueryClient();
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(todayIst());
   const [hour, setHour] = useState<number>(6);
   const [capacity, setCapacity] = useState<number>(20);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -30,8 +31,8 @@ export function AdminPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const sessions = useQuery({
-    queryKey: ['sessions'],
-    queryFn: () => api<Session[]>('/sessions'),
+    queryKey: ['sessions', 'admin', date],
+    queryFn: () => api<Session[]>(`/sessions?date=${date}`),
     refetchInterval: 5000,
   });
 
@@ -139,7 +140,7 @@ export function AdminPage() {
       {checkinMsg && <p className="success" role="status">{checkinMsg}</p>}
       {checkinErr && <p className="error" role="alert">{checkinErr}</p>}
 
-      <h2>Today's sessions</h2>
+      <h2>Sessions on {date}</h2>
       {sessions.isLoading && <p className="muted">Loading...</p>}
       {sessions.data && (
         <ul className="list">
