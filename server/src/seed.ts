@@ -38,13 +38,23 @@ async function run() {
     ],
   );
 
-  // Sessions: next 6 hourly slots (one in the past so the UI shows a mix).
-  const offsets = [-1, 0, 1, 2, 3, 4];
-  for (const o of offsets) {
+  // Sessions: today, tomorrow and the day after, one per hour from 6:00 to 21:00 IST.
+  // Plus the current hour (even outside gym hours) so check-in can always be tried.
+  const istNow = new Date(Date.now() + IST_OFFSET_MS);
+  const slots = new Set<string>();
+  for (let day = 0; day < 3; day++) {
+    const d = new Date(istNow.getTime() + day * 24 * HOUR_MS).toISOString().slice(0, 10);
+    for (let hour = 6; hour <= 21; hour++) {
+      slots.add(`${d}T${String(hour).padStart(2, '0')}:00:00+05:30`);
+    }
+  }
+  slots.add(istHourIso(0));
+  for (const startsAt of slots) {
     await pool.query(
       `INSERT INTO sessions (starts_at, ends_at, capacity)
-       VALUES ($1::timestamptz, $1::timestamptz + INTERVAL '1 hour', 20)`,
-      [istHourIso(o)],
+       VALUES ($1::timestamptz, $1::timestamptz + INTERVAL '1 hour', 20)
+       ON CONFLICT (starts_at) DO NOTHING`,
+      [startsAt],
     );
   }
 
